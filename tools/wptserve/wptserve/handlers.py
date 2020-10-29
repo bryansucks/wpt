@@ -300,11 +300,23 @@ class PythonScriptHandler(object):
         """
         path = filesystem_path(self.base_path, request, self.url_base)
 
-        sys_path = sys.path[:]
-        sys_modules = sys.modules.copy()
+        # Add root of WPT to the path, for py file handler imports.
+        # TODO: Find a better location to do this. For some reason for the
+        # tests I had to do it here... even the __init__ didn't work.
+        # TODO: When running 'wpt run', this is already on the path. But it
+        # isn't for tests, so need to figure out the correct story here.
+        # TODO: Maybe want to add the docroot rather than _WPT_ROOT?
+        _WPT_ROOT = os.path.abspath(os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            '..',  # tools/wptserve/
+            '..',  # tools/
+            '..',  # WPT root
+        ))
+        if _WPT_ROOT not in sys.path:
+            sys.path.insert(0, _WPT_ROOT)
+
         try:
             environ = {"__file__": path}
-            sys.path.insert(0, os.path.dirname(path))
             with open(path, 'rb') as f:
                 exec(compile(f.read(), path, 'exec'), environ, environ)
 
@@ -313,9 +325,6 @@ class PythonScriptHandler(object):
 
         except IOError:
             raise HTTPException(404)
-        finally:
-            sys.path = sys_path
-            sys.modules = sys_modules
 
     def __call__(self, request, response):
         def func(request, response, environ, path):
