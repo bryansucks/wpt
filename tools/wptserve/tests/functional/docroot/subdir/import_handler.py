@@ -1,4 +1,4 @@
-import example_module
+from tools.wptserve.tests.functional.docroot.subdir import example_module
 
 
 def main(request, response):
