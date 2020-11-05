@@ -575,6 +575,38 @@ function standardSetup(cb, options = {}) {
     });
 }
 
-/* JSHINT */
-/* globals promise_rejects_dom, promise_rejects_js, assert_class_string, assert_equals, assert_idl_attribute, assert_readonly, promise_test */
-/* exported standardSetup, CreateCredentialsTest, GetCredentialsTest */
+// virtualAuthenticatorTest runs |cb| as a promise_test with a virtual
+// authenticator set up before and destroyed after the test, if the virtual
+// testing API is available. In manual tests, setup and teardown is skipped.
+function virtualAuthenticatorTest(cb, options = {}, name="Virtual Authenticator Test") {
+    let authenticatorArgs = {
+        protocol: "ctap1/u2f",
+        transport: "usb",
+        hasResidentKey: false,
+        hasUserVerification: false,
+        isUserVerified: false,
+    };
+    extendObject(authenticatorArgs, options);
+    let authenticator = "";
+    let manualTest = false;
+    promise_test(async t => {
+      try {
+        authenticator = await window.test_driver.add_virtual_authenticator(authenticatorArgs);
+      } catch (error) {
+        if (error !== "error: Action add_virtual_authenticator not implemented") {
+          throw error;
+        }
+        // Tests must be able to run manually without the virtual authenticator
+        // environment.
+        manualTest = true;
+      }
+    }, name + "/Setup");
+
+    promise_test(async t => cb(t), name);
+
+    promise_test(async t => {
+      if (!manualTest) {
+        return window.test_driver.remove_virtual_authenticator(authenticator);
+      }
+    }, name + "/Cleanup");
+}
